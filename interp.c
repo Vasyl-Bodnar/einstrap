@@ -76,27 +76,20 @@ int interpret(const char *in, int size) {
     return 0;
 }
 
-#define BUF_SIZE 100
-
 int main(void) {
-    FILE *out = fopen("out.byt", "w");
+  FILE *out = fopen("out.byt", "r");
 
-    char *buf = malloc(BUF_SIZE);
+  struct stat sbuf;
 
-    int i = 0;
+  fstat(fileno(out), &sbuf);
 
-    buf[i++] = 0b11000 | Push;
-    buf[i++] = 0b11000 | Add;
-    buf[i++] = Out;
-    buf[i++] = 0b1000 | Pop;
-    buf[i++] = ((0b1000 | Add) << 3) | Cop;
-    buf[i++] = Out;
+  char *buf = malloc(sbuf.st_size);
 
-    interpret(buf, i);
+  fread(buf, 1, sbuf.st_size, out);
 
-    fwrite(buf, 1, BUF_SIZE - 1, out);
+  interpret(buf, sbuf.st_size);
 
-    free(buf);
-    fclose(out);
-    return 0;
+  free(buf);
+  fclose(out);
+  return 0;
 }
