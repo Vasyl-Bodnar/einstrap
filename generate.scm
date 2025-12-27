@@ -14,9 +14,10 @@
     (else (display "Not an op"))))
 
 (define prog
-  '((push 1)
-    (add 1)
-    (store 0)))
+  `((push ,(map-name 'push 3))
+    (rep 5)
+    (push ,(map-name 'store 3))
+    (rep 5)))
 
 (define out (u8-list->bytevector (map (lambda (x) (map-name (car x) (cadr x))) prog)))
 

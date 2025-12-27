@@ -28,7 +28,7 @@
  * Specific details are provided per instruction
  */
 #define OP_MASK 0b00000111
-#define CONST(c) (c >> 3)
+#define CONST(c) ((c) >> 3)
 enum bytecode {
     /*
      * VVVVV Push
@@ -55,6 +55,10 @@ enum bytecode {
     /*
      * EEEEE Rep
      * TOPST OOO
+     *
+     * 5     Rep
+     * 3     Ext
+     * 3     Push
      *
      * Repeat an op TOPST times with val=EEEEE
      * Can repeat itself,
@@ -85,7 +89,7 @@ enum bytecode {
      * EEEEE Cop
      * TOPST OOO
      *
-     * If TOPST is zero, do op with val=EEEEE
+     * If TOPST is nonzero, do op with val=EEEEE
      *
      * Can be extended to increase maximum value
      * Can be repeated for side effects
@@ -110,7 +114,8 @@ enum bytecode {
     Store,
 };
 
-void execute_op(char op, int val, int *mem, int *st, int *st_idx) {
+void execute_op(uint8_t op, uint32_t val, uint32_t *mem, uint8_t *st,
+                int *st_idx) {
     switch (op) {
     case Push:
         *st_idx += 1;
@@ -123,15 +128,18 @@ void execute_op(char op, int val, int *mem, int *st, int *st_idx) {
         st[*st_idx] += val;
         break;
     case Rep:
+        /* TODO: The pop may be an issue for chaining */
         *st_idx -= 1;
-        for (typeof(val) i = 0, reps = CONST(st[*st_idx + 1]); i < reps; i++) {
-            execute_op(st[*st_idx] & OP_MASK, val, mem, st, st_idx);
+        uint8_t op = st[*st_idx + 1] & OP_MASK;
+        uint32_t reps = CONST(st[*st_idx + 1]);
+        for (uint32_t i = 0; i < reps; i++) {
+            execute_op(op, val, mem, st, st_idx);
         }
         break;
     case Ext:
         *st_idx -= 1;
         execute_op(st[*st_idx + 1] & OP_MASK,
-                   (val << 8) | CONST(st[*st_idx + 1]), mem, st, st_idx);
+                   (val << 5) | CONST(st[*st_idx + 1]), mem, st, st_idx);
         break;
     case Cop:
         *st_idx -= 1;
@@ -142,8 +150,8 @@ void execute_op(char op, int val, int *mem, int *st, int *st_idx) {
     case Load:
         // Currently val of 0 is special for calling getc (testing purposes)
         if (val) {
-            typeof(val) v = st[*st_idx];
-            st[*st_idx] = mem[(val << 8) | v];
+            typeof(*st) v = st[*st_idx];
+            st[*st_idx] = mem[(val << (sizeof(*st) * 8)) | v];
         } else {
             st[*st_idx] = getc(stdin);
         }
@@ -160,18 +168,18 @@ void execute_op(char op, int val, int *mem, int *st, int *st_idx) {
     }
 }
 
-int interpret(const char *in, int size) {
-    const int st_limit = 100;
-    int st[st_limit];
+int interpret(const uint8_t *in, uint32_t size) {
+    const uint32_t st_limit = 100;
+    uint8_t st[st_limit];
     int st_idx = 0;
 
-    const int mem_limit = 1000;
-    int mem[mem_limit];
+    const uint32_t mem_limit = 1000;
+    uint32_t mem[mem_limit];
 
     memset(st, 0, sizeof(*st) * st_limit);
     memset(mem, 0, sizeof(*mem) * mem_limit);
 
-    for (int i = 0; i < size; i++) {
+    for (uint32_t i = 0; i < size; i++) {
         execute_op(*in & OP_MASK, CONST(*in), mem, st, &st_idx);
         in++;
         if (st_idx < 0) {
@@ -193,7 +201,7 @@ int main(void) {
 
     fstat(fileno(out), &sbuf);
 
-    char *buf = malloc(sbuf.st_size);
+    uint8_t *buf = malloc(sbuf.st_size);
 
     fread(buf, 1, sbuf.st_size, out);
 
