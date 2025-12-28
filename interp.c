@@ -56,10 +56,6 @@ enum bytecode {
      * EEEEE Rep
      * TOPST OOO
      *
-     * 5     Rep
-     * 3     Ext
-     * 3     Push
-     *
      * Repeat an op TOPST times with val=EEEEE
      * Can repeat itself,
      * e.g. Rep Rep will have TOPST * TOPST repetitions of op with val=EEEEE
@@ -67,22 +63,22 @@ enum bytecode {
      * This allows to use dynamic stack values for operations that cannot
      *
      * NOTE: using TOPSTACK implies a pop
+     *
+     * NOTE: on stack showcases lowest TOPST means highest on stack
      */
     Rep,
     /*
-     * EEEEE Ext
+     * EEEEX Ext
      * TOPST OOO
      *
-     * Extend an op with val=EEEEETOPST
-     * Can extend itself, e.g. Ext Ext will have val=EEEEETOPSTTOPST for the op
+     * If X is set then extend an op with val=EEEETOPST.
+     *
+     * Else modify top of the stack by setting TOP to EEE,
+     * which is useful for pushing extended instructions
+     *
+     * Given X=1, and EEEE=0, this acts as an "execution" of top of the stack
      *
      * This allows to use dynamic stack values for operations that cannot
-     *
-     * NOTE: The lowest TOPST is the one down the chain,
-     * e.g. EEEEE Ext
-     *      TOPS1 Ext
-     *      TOPS2 OOO
-     * will have val=EEEEETOPS1TOPS2 for op
      */
     Ext,
     /*
@@ -114,7 +110,7 @@ enum bytecode {
     Store,
 };
 
-void execute_op(uint8_t op, uint32_t val, uint32_t *mem, uint8_t *st,
+void execute_op(uint8_t op, uint32_t val, uint8_t *mem, uint8_t *st,
                 int *st_idx) {
     switch (op) {
     case Push:
@@ -137,9 +133,14 @@ void execute_op(uint8_t op, uint32_t val, uint32_t *mem, uint8_t *st,
         }
         break;
     case Ext:
-        *st_idx -= 1;
-        execute_op(st[*st_idx + 1] & OP_MASK,
-                   (val << 5) | CONST(st[*st_idx + 1]), mem, st, st_idx);
+        if (val & 1) {
+            *st_idx -= 1;
+            execute_op(st[*st_idx + 1] & OP_MASK,
+                       ((val >> 1) << 5) | CONST(st[*st_idx + 1]), mem, st,
+                       st_idx);
+        } else {
+            st[*st_idx] |= (val >> 1) << 5;
+        }
         break;
     case Cop:
         *st_idx -= 1;
@@ -174,7 +175,7 @@ int interpret(const uint8_t *in, uint32_t size) {
     int st_idx = 0;
 
     const uint32_t mem_limit = 1000;
-    uint32_t mem[mem_limit];
+    uint8_t mem[mem_limit];
 
     memset(st, 0, sizeof(*st) * st_limit);
     memset(mem, 0, sizeof(*mem) * mem_limit);
