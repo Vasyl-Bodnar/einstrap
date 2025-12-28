@@ -17,7 +17,7 @@ Where `val` represents a variety of values.
 `op` on the other hand is one of the below with their semantics:
 
 - Push: put `val` on top of the stack
-- Pop: remove `val` number of stack entries (`val=0` is nop)
+- Pop: remove `val` number of stack entries
 - Add: add `val` to top of the stack
 - Rep: repeat an op a number of times
 - Ext: extend an op to more bits
@@ -32,10 +32,10 @@ EEEEE OOO
 TOPSTACK
 ```
 
-e.g. Ext:
+e.g. Rep:
 
 ```
-EEEEE Ext
+EEEEE Rep
 TOPST OOO
 ```
 
@@ -43,12 +43,14 @@ More details are provided in the code, which is always more up to date.
 
 ## Compile and Run
 
-The program provided is a C interpreter implementation.
+The program provided is a C interpreter implementation and a Guile Scheme script.
 
-This utilizes [xmake](https://xmake.io/), which might not be present on your system.
+You can use the script to generate some simple bytecode, e.g. `guile generate.scm`.
+
+For C, this utilizes [xmake](https://xmake.io/), which might not be present on your system.
 
 You can use `xmake` or `xmake run` to build and/or run the project. 
 
 You can also configure it for cross-compilation using e.g. `xmake f -p windows --toolchain=mingw`, assuming you possess the required toolchains and targets.
 
-In case you do not wish to use `xmake`, you can just do a simple `cc generate.c -O3 -Wall` and run the `a.out`.
+In case you do not wish to use `xmake`, you can just do a simple `cc interp.c -O2 -Wall` and run the `a.out`.

@@ -14,12 +14,14 @@
     ((store) (logior 7 (ash val 3)))
     (else (display "Not an op"))))
 
+(define (push-ext op val)
+  `((push ,(map-name op (logand val #b11)))
+    (ext-fix ,(ash (logand val #b11100) -2))))
+
 (define prog
-  `((push ,(map-name 'push #b11))
-    (ext-fix #b111)
+  `(,@(push-ext 'push 31)
     (rep 1)
-    (push ,(map-name 'store #b11))
-    (ext-fix #b111)
+    ,@(push-ext 'store 31)
     (rep 0)))
 
 (define out (u8-list->bytevector (map (lambda (x) (apply map-name x)) prog)))
